@@ -1,7 +1,6 @@
 import request from 'supertest';
 import app from '../app';
 import User from '../models/user.model';
-import { getAuthCookie } from '../tests/setup';
 import { ERROR_MESSAGES } from '../utils/constants';
 
 describe('Auth Controller', () => {

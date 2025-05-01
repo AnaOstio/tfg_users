@@ -37,7 +37,10 @@ afterAll(async () => {
 });
 
 // Función helper para autenticación en tests
-export const getAuthCookie = (userId: string): string => {
-    const token = jwt.sign({ id: userId }, process.env.JWT_SECRET!);
-    return `token=${token}`;
+export const getAuthToken = (userId: string, role = 'ADMIN') => {
+    return jwt.sign(
+        { id: userId, role },
+        process.env.JWT_SECRET!,
+        { expiresIn: '1h' }
+    );
 };

@@ -1,22 +1,22 @@
-import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { JWT_SECRET, ERROR_MESSAGES } from '../utils/constants';
+import { Request, Response, NextFunction } from 'express';
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-        return res.status(401).json({ error: ERROR_MESSAGES.UNAUTHORIZED });
+        return res.status(401).json({ error: 'No autorizado' });
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
-        req.user = { id: decoded.id };
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+        req.user = { _id: decoded.id };
         next();
     } catch (error) {
-        return res.status(401).json({ error: ERROR_MESSAGES.UNAUTHORIZED });
+        return res.status(401).json({ error: 'No autorizado' });
     }
 };
+
 
 // export const checkThesisOwnership = async (req: Request, res: Response, next: NextFunction) => {
 //     try {

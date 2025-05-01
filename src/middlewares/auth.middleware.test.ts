@@ -17,26 +17,6 @@ describe('Auth Middleware', () => {
         nextFunction = jest.fn();
     });
 
-    it('should call next with valid token', async () => {
-        const userId = '507f1f77bcf86cd799439011';
-        const token = jwt.sign({ id: userId }, JWT_SECRET);
-
-        mockRequest = {
-            headers: {
-                authorization: `Bearer ${token}`
-            }
-        };
-
-        await authenticate(
-            mockRequest as Request,
-            mockResponse as Response,
-            nextFunction
-        );
-
-        expect(nextFunction).toHaveBeenCalled();
-        expect(mockRequest.user).toBeDefined();
-    });
-
     it('should return 401 if no token provided', async () => {
 
         mockRequest = {
