@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { registerUser, loginUser, logoutUser } from '../services/auth.service';
 import { validateEmail, validatePassword, validatePasswordConfirmation } from '../utils/validators';
 import { ERROR_MESSAGES } from '../utils/constants';
@@ -69,4 +69,12 @@ export const logout = async (req: Request, res: Response) => {
     } catch (error: any) {
         res.status(400).json({ error: error.message });
     }
+};
+
+export const verifyToken = async (req: Request, res: Response) => {
+    return res.status(200).json({
+        success: true,
+        message: 'Token válido',
+        user: (req as any).user
+    });
 };
