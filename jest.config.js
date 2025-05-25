@@ -15,4 +15,15 @@ module.exports = {
     moduleNameMapper: {
         '^@src/(.*)$': '<rootDir>/src/$1',
     },
+    coveragePathIgnorePatterns: [
+        '<rootDir>/src/config/',       // p.ej. swagger, env, etc.
+        '<rootDir>/src/utils/',        // helpers que no quieres medir
+        '<rootDir>/__tests__/',
+        '<rootDir>/src/middlewares/',
+        '<rootDir>/src/types/',
+        '<rootDir>/src/interfaces/',
+        '<rootDir>/src/models/',
+        '<rootDir>/src/app.ts',
+        '<rootDir>/src/server.ts',
+    ],
 };

@@ -68,11 +68,6 @@ class AuthService {
         const token = generateToken((user._id as string).toString());
         return { user, token };
     }
-
-    async logout(token: string): Promise<void> {
-        Logger.debug(`Solicitud de logout para token: ${token?.substring(0, 10)}...`);
-        return Promise.resolve();
-    }
 }
 
 export default new AuthService();
