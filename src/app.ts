@@ -5,6 +5,9 @@ import { notFound, errorHandler } from './middlewares/error.middleware';
 import Logger from './config/logger';
 import authRoutes from './routes/auth.routes';
 import permissionRoutes from './routes/permission.routes';
+import swaggerOptions from './config/swagger';
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 
 const app = express();
 
@@ -20,6 +23,9 @@ app.use(morgan(morganFormat, { stream: morganStream }));
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+const specs = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 // Routes
 app.use('/api/auth', authRoutes);
