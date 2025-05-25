@@ -1,17 +1,8 @@
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { Schema, model, Document } from 'mongoose';
-import { ROL_DEFECTO, ESTADO_CUENTA } from '../utils/constants';
+import { IUserDocument } from '../interfaces/user.inteface';
 
-export interface IUser extends Document {
-    email: string;
-    password: string;
-    role: string;
-    status: string;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-const UserSchema = new Schema<IUser>({
+const userSchema = new mongoose.Schema<IUserDocument>({
     email: {
         type: String,
         required: true,
@@ -19,16 +10,44 @@ const UserSchema = new Schema<IUser>({
         trim: true,
         lowercase: true
     },
-    password: { type: String, required: true },
-    role: { type: String, default: ROL_DEFECTO },
-    status: { type: String, default: ESTADO_CUENTA.ACTIVO },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
+    password: {
+        type: String,
+        required: true,
+        minlength: 6
+    },
+    role: {
+        type: String,
+        default: 'user'
+    },
+    accountStatus: {
+        type: String,
+        default: 'activated'
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now
+    }
 });
 
-UserSchema.pre<IUser>('save', function (next) {
-    this.updatedAt = new Date();
-    next();
+userSchema.pre<IUserDocument>('save', async function (next) {
+    if (!this.isModified('password')) return next();
+
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (error: any) {
+        next(error);
+    }
 });
 
-export default model<IUser>('User', UserSchema);
+userSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
+    return bcrypt.compare(password, this.password);
+};
+
+const User = mongoose.model<IUserDocument>('User', userSchema);
+export default User;

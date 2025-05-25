@@ -1,36 +1,78 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { JWT_SECRET, SESSION_EXPIRATION, ERROR_MESSAGES } from '../utils/constants';
 import User from '../models/user.model';
-import { IUser } from '../models/user.model';
+import { generateToken } from '../config/jwt';
+import { validateEmail } from '../utils/email.validator';
+import Logger from '../config/logger';
+import { IUser } from '../interfaces/user.inteface';
 
-export const registerUser = async (email: string, password: string): Promise<IUser> => {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        throw new Error(ERROR_MESSAGES.USER_EXISTS);
+class AuthService {
+    async register(email: string, password: string, confirmPassword: string): Promise<{ user: any; token: string }> {
+        Logger.debug(`Intentando registrar usuario con email: ${email}`);
+
+        if (!email || !password || !confirmPassword) {
+            Logger.warn('Intento de registro con campos faltantes');
+            throw new Error('Todos los campos son obligatorios');
+        }
+
+        if (!validateEmail(email)) {
+            Logger.warn(`Email no válido: ${email}`);
+            throw new Error('El correo electrónico no cumple con el estándar ECORR');
+        }
+
+        if (password !== confirmPassword) {
+            Logger.warn('Las contraseñas no coinciden en el registro');
+            throw new Error('Las contraseñas no coinciden');
+        }
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            Logger.warn(`Intento de registro con email existente: ${email}`);
+            throw new Error('El correo electrónico ya está en uso');
+        }
+
+        const user = await User.create({
+            email,
+            password,
+            role: 'user',
+            accountStatus: 'activated'
+        });
+
+        Logger.info(`Nuevo usuario registrado: ${email} (ID: ${user._id as string})`);
+
+        const token = generateToken((user._id as string).toString());
+        Logger.debug(`Token generado para usuario ID: ${user._id as string}`);
+
+        return { user, token };
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashedPassword });
-    return await user.save();
-};
+    async login(email: string, password: string): Promise<{ user: any; token: string }> {
+        Logger.debug(`Intento de login para email: ${email}`);
 
-export const loginUser = async (email: string, password: string): Promise<{ user: IUser; token: string }> => {
-    const user = await User.findOne({ email });
-    if (!user) {
-        throw new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+        if (!email || !password) {
+            Logger.warn('Intento de login con campos faltantes');
+            throw new Error('Correo electrónico y contraseña son obligatorios');
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            Logger.warn(`Intento de login con email no encontrado: ${email}`);
+            throw new Error('Usuario no encontrado');
+        }
+
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+            Logger.warn(`Contraseña incorrecta para usuario: ${email}`);
+            throw new Error('Credenciales inválidas');
+        }
+
+        Logger.info(`Usuario logueado correctamente: ${email} (ID: ${user._id})`);
+        const token = generateToken((user._id as string).toString());
+        return { user, token };
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-        throw new Error(ERROR_MESSAGES.INVALID_CREDENTIALS);
+    async logout(token: string): Promise<void> {
+        Logger.debug(`Solicitud de logout para token: ${token?.substring(0, 10)}...`);
+        return Promise.resolve();
     }
+}
 
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: SESSION_EXPIRATION });
-    return { user, token };
-};
-
-export const logoutUser = (token: string): void => {
-    // En una implementación real, podrías agregar el token a una lista negra aquí
-    // Para este ejemplo, simplemente dejamos que el token expire
-};
+export default new AuthService();

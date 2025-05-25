@@ -1,65 +1,89 @@
 import { Request, Response } from 'express';
-import * as PermissionService from '../services/permission.service';
-import { PermissionType, ResourceType } from '../models/permission.model';
+import permissionService from '../services/permission.service';
+import Logger from '../config/logger';
+import { PermissionType } from '../interfaces/permission.interface';
 
-export const searchUserByEmail = async (req: Request, res: Response) => {
-    const { email } = req.query;
-    if (!email || typeof email !== 'string') {
-        return res.status(400).json({ error: 'Email inválido' });
-    }
-
-    const user = await PermissionService.findUserByEmail(email);
-    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-
-    res.json({ user: { id: user._id, email: user.email } });
-};
-
-export const getPermissions = (_req: Request, res: Response) => {
-    res.json({ permissions: PermissionService.getAvailablePermissions() });
-};
-
-export const assign = async (req: Request, res: Response) => {
-    const { userId, resourceId, permissions } = req.body;
-    const grantedBy = (req as any).user._id;
-
-    if (!userId || !resourceId || !Array.isArray(permissions) || permissions.length === 0) {
-        return res.status(400).json({ error: 'Datos de entrada inválidos' });
-    }
-
+export const assignPermissions = async (req: Request, res: Response) => {
     try {
-        const result = await PermissionService.assignPermissions({
-            userId,
-            resourceId,
-            resourceType: ResourceType.THESIS,
-            permissions,
-            grantedBy
-        });
+        const { memoryId, userId, assignedBy, permissions } = req.body;
 
-        return res.json({
-            message: 'Permisos asignados correctamente',
+        const result = await permissionService.assignPermissions(
+            memoryId,
+            userId,
+            assignedBy,
+            permissions as PermissionType[]
+        );
+
+        res.status(200).json({
+            success: true,
             data: result
         });
     } catch (error: any) {
-        return res.status(500).json({ error: error.message });
+        Logger.error(`Error al asignar permisos: ${error.message}`);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 
-export const revoke = async (req: Request, res: Response) => {
-    const { userId, resourceId } = req.body;
-
-    if (!userId || !resourceId) {
-        return res.status(400).json({ error: 'Datos de entrada inválidos' });
-    }
-
+export const revokePermissions = async (req: Request, res: Response) => {
     try {
-        await PermissionService.revokePermissions({
-            userId,
-            resourceId,
-            resourceType: ResourceType.THESIS
-        });
+        const { memoryId, userId, permissionsToRevoke } = req.body;
 
-        return res.json({ message: 'Permisos revocados correctamente' });
+        const result = await permissionService.revokePermissions(
+            memoryId,
+            userId,
+            permissionsToRevoke as PermissionType[]
+        );
+
+        res.status(200).json({
+            success: true,
+            data: result
+        });
     } catch (error: any) {
-        return res.status(500).json({ error: error.message });
+        Logger.error(`Error al revocar permisos: ${error.message}`);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const getUserPermissions = async (req: Request, res: Response) => {
+    try {
+        const { userId, memoryId } = req.params;
+
+        const permissions = await permissionService.getUserPermissions(userId, memoryId);
+
+        res.status(200).json({
+            success: true,
+            data: permissions
+        });
+    } catch (error: any) {
+        Logger.error(`Error al obtener permisos del usuario: ${error.message}`);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const searchUsersByEmail = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.query;
+
+        const users = await permissionService.searchUsersByEmail(email as string);
+
+        res.status(200).json({
+            success: true,
+            data: users
+        });
+    } catch (error: any) {
+        Logger.error(`Error al buscar usuarios por email: ${error.message}`);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
     }
 };
