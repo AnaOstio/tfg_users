@@ -143,7 +143,7 @@ router.get('/permissions', getUserPermissions);
 *                 message:
 *                   type: string
 */
-router.post('/memory/:memoryId/permissions', assignPermissions);
+router.post('/permissions', assignPermissions);
 
 /**
  * @openapi
@@ -198,6 +198,6 @@ router.post('/memory/:memoryId/permissions', assignPermissions);
  *                 message:
  *                   type: string
  */
-router.delete('/memory/:memoryId/permissions/:userId', revokePermissions);
+router.delete('/permissions', revokePermissions);
 
 export default router;

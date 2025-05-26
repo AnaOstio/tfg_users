@@ -7,6 +7,11 @@ export const assignPermissions = async (req: Request, res: Response) => {
     try {
         const { memoryId, userId, assignedBy, permissions } = req.body;
 
+        if (!memoryId || !userId || !assignedBy || !permissions || !Array.isArray(permissions) || permissions.length === 0) {
+            Logger.error('Faltan datos necesarios para asignar permisos');
+            throw new Error('Faltan datos necesarios para asignar permisos');
+        }
+
         const result = await permissionService.assignPermissions(
             memoryId,
             userId,
@@ -30,6 +35,11 @@ export const assignPermissions = async (req: Request, res: Response) => {
 export const revokePermissions = async (req: Request, res: Response) => {
     try {
         const { memoryId, userId, permissionsToRevoke } = req.body;
+
+        if (!memoryId || !userId || !permissionsToRevoke || !Array.isArray(permissionsToRevoke) || permissionsToRevoke.length === 0) {
+            Logger.error('Faltan datos necesarios para revocar permisos');
+            throw new Error('Faltan datos necesarios para revocar permisos');
+        }
 
         const result = await permissionService.revokePermissions(
             memoryId,
