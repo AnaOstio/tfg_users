@@ -68,6 +68,25 @@ class AuthService {
         const token = generateToken((user._id as string).toString());
         return { user, token };
     }
+
+
+    async getUserByEmail(email: string): Promise<IUser | null> {
+        Logger.debug(`Buscando usuario por email: ${email}`);
+
+        if (!email) {
+            Logger.warn('Intento de búsqueda de usuario sin email');
+            throw new Error('El correo electrónico es obligatorio');
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            Logger.warn(`Usuario no encontrado para email: ${email}`);
+            return null;
+        }
+
+        Logger.info(`Usuario encontrado: ${email} (ID: ${user._id})`);
+        return user;
+    }
 }
 
 export default new AuthService();
