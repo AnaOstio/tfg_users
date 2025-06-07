@@ -2,7 +2,7 @@ import User from '../models/user.model';
 import { generateToken } from '../config/jwt';
 import { validateEmail } from '../utils/email.validator';
 import Logger from '../config/logger';
-import { IUser } from '../interfaces/user.inteface';
+import { IUser, IUserModel } from '../interfaces/user.inteface';
 
 class AuthService {
     async register(email: string, password: string, confirmPassword: string): Promise<{ user: any; token: string }> {
@@ -70,7 +70,7 @@ class AuthService {
     }
 
 
-    async getUserByEmail(email: string): Promise<IUser | null> {
+    async getUserByEmail(email: string): Promise<IUserModel | null> {
         Logger.debug(`Buscando usuario por email: ${email}`);
 
         if (!email) {

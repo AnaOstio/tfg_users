@@ -12,3 +12,7 @@ export interface IUser {
 export interface IUserDocument extends IUser, mongoose.Document {
     comparePassword(password: string): Promise<boolean>;
 }
+
+export interface IUserModel extends IUser, IUserDocument {
+    _id: unknown;
+}

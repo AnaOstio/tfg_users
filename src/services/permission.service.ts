@@ -3,6 +3,12 @@ import User from '../models/user.model';
 import { PermissionType } from '../interfaces/permission.interface';
 import Logger from '../config/logger';
 
+interface SearchUsersParams {
+    email: string;
+    page: number;
+    pageSize: number;
+}
+
 class PermissionService {
     async assignPermissions(
         memoryId: string,
@@ -83,15 +89,42 @@ class PermissionService {
         return permission ? permission.permissions : [];
     }
 
-    async searchUsersByEmail(email: string): Promise<any[]> {
-        Logger.debug(`Buscando usuarios por email: ${email}`);
-        const users = await User.find({
-            email: { $regex: email, $options: 'i' }
-        }).select('-password');
+    async searchUsersByEmail(params: SearchUsersParams): Promise<{
+        page: number;
+        pageSize: number;
+        total: number;
+        data: any[];
+    }> {
+        const { email, page, pageSize } = params;
 
-        Logger.debug(`Usuarios encontrados: ${users.length}`);
-        return users;
+        Logger.debug(`Buscando usuarios por email: "${email}", página: ${page}, tamaño página: ${pageSize}`);
+
+        // Construimos el filtro para búsqueda por email (regex, case-insensitive)
+        const filter: any = {
+            email: { $regex: email, $options: 'i' },
+        };
+
+        // Calculamos cuántos documentos omitimos para paginar
+        const skip = (page - 1) * pageSize;
+
+        // Ejecutamos en paralelo la búsqueda paginada y el conteo total
+        const [docs, total] = await Promise.all([
+            User.find(filter)
+                .select('-password')     // Excluimos el campo password
+                .skip(skip)
+                .limit(pageSize)
+                .exec(),
+            User.countDocuments(filter).exec(),
+        ]);
+
+        Logger.debug(`Usuarios encontrados (en total): ${total}. Usuarios devueltos en esta página: ${docs.length}`);
+
+        return {
+            page,
+            pageSize,
+            total,
+            data: docs,
+        };
     }
 }
-
 export default new PermissionService();

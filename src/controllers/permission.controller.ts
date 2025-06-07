@@ -2,21 +2,37 @@ import { Request, Response } from 'express';
 import permissionService from '../services/permission.service';
 import Logger from '../config/logger';
 import { PermissionType } from '../interfaces/permission.interface';
+import authService from '../services/auth.service';
 
 export const assignPermissions = async (req: Request, res: Response) => {
     try {
-        const { memoryId, userId, assignedBy, permissions } = req.body;
+        const { memoryId, userId, permissions } = req.body;
 
-        if (!memoryId || !userId || !assignedBy || !permissions || !Array.isArray(permissions) || permissions.length === 0) {
+        Logger.debug(`Asignando permisos: memoria=${memoryId}, usuario=${userId}, permisos=${permissions} cnd usuario asignador=${(req as any).user}`);
+
+        if (!memoryId || !userId || !permissions || !Array.isArray(permissions) || permissions.length === 0 || !(req as any).user) {
             Logger.error('Faltan datos necesarios para asignar permisos');
             throw new Error('Faltan datos necesarios para asignar permisos');
         }
 
+        const permisosTraducidos = permissions.map(
+            (perm) => PermissionType[perm as keyof typeof PermissionType]
+        );
+
+        const userAssigned = await authService.getUserByEmail(userId);
+        if (!userAssigned) {
+            Logger.error(`Usuario no encontrado: ${userId}`);
+            throw new Error('Usuario no encontrado');
+        }
+
+        console.log(`Usuario asignado: `, userAssigned);
+
+
         const result = await permissionService.assignPermissions(
             memoryId,
-            userId,
-            assignedBy,
-            permissions as PermissionType[]
+            (userAssigned._id as string).toString(),
+            (req as any).user._id,
+            permisosTraducidos
         );
 
         res.status(200).json({
@@ -81,19 +97,27 @@ export const getUserPermissions = async (req: Request, res: Response) => {
 
 export const searchUsersByEmail = async (req: Request, res: Response) => {
     try {
-        const { email } = req.query;
+        // Extraemos email, page y pageSize de los query params
+        const { email, page = 1, pageSize = 10 } = req.query;
 
-        const users = await permissionService.searchUsersByEmail(email as string);
+        // Parseamos page y pageSize a número, con fallback a 1 y 10 respectivamente
+        const pageNum = parseInt(page as string, 10) || 1;
+        const pageSizeNum = parseInt(pageSize as string, 10) || 10;
 
-        res.status(200).json({
-            success: true,
-            data: users
+        // Llamamos al servicio pasándole email, page y pageSize
+        const result = await permissionService.searchUsersByEmail({
+            email: email as string,
+            page: pageNum,
+            pageSize: pageSizeNum,
         });
+
+        // Devolvemos la misma estructura que en LearningOutcomeService.search
+        res.status(200).json(result);
     } catch (error: any) {
         Logger.error(`Error al buscar usuarios por email: ${error.message}`);
         res.status(400).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
