@@ -4,7 +4,10 @@ import User from '../models/user.model';
 import Logger from '../config/logger';
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    console.log('Ejecutando middleware de autenticación');
     try {
+        console.log('Middleware de autenticación ejecutado');
+        console.log('Headers de la solicitud:', req.headers.authorization?.split(' ')[1]);
         const token = req.headers.authorization?.split(' ')[1];
 
         if (!token) {

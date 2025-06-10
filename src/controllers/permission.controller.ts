@@ -121,3 +121,27 @@ export const searchUsersByEmail = async (req: Request, res: Response) => {
         });
     }
 };
+
+export const getPermissionByMemoriesIds = async (req: Request, res: Response) => {
+    try {
+        const memoryIds = req.body;
+
+        if (!memoryIds || !Array.isArray(memoryIds)) {
+            Logger.error('Faltan datos necesarios para obtener permisos por IDs de memoria');
+            throw new Error('Faltan datos necesarios para obtener permisos por IDs de memoria');
+        }
+
+        const permissions = await permissionService.getPermissionByMemoriesIds(memoryIds, (req as any).user._id.toString());
+        res.status(200).json({
+            success: true,
+            data: permissions
+        });
+    }
+    catch (error: any) {
+        Logger.error(`Error al obtener permisos por IDs de memoria: ${error.message}`);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};

@@ -2,6 +2,7 @@ import Permission from '../models/permission.model';
 import User from '../models/user.model';
 import { PermissionType } from '../interfaces/permission.interface';
 import Logger from '../config/logger';
+import { getPermissionByMemoriesIds } from '../controllers/permission.controller';
 
 interface SearchUsersParams {
     email: string;
@@ -126,5 +127,18 @@ class PermissionService {
             data: docs,
         };
     }
+    async getPermissionByMemoriesIds(memoryIds: string[], userId: string): Promise<any[]> {
+        Logger.debug(`Obteniendo permisos por IDs de memoria: ${memoryIds.join(', ')}`);
+        const permissions = await Permission
+            .find({
+                userId: userId,
+                memoryId: { $in: memoryIds },
+            })
+            .populate('assignedBy', '-password')
+            .exec();
+        Logger.info(`Permisos obtenidos: ${permissions.length} registros encontrados`);
+        return permissions;
+    }
 }
+
 export default new PermissionService();
