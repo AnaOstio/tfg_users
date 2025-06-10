@@ -1,17 +1,29 @@
+// jest.config.js
 module.exports = {
     preset: 'ts-jest',
     testEnvironment: 'node',
-    setupFilesAfterEnv: ['./src/tests/setup.ts'],
-    testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+
+    // only look in __tests__ at the project root
+    roots: ['<rootDir>/__tests__'],
+
+    // match *.test.ts files anywhere under __tests__
+    testMatch: ['**/*.test.ts'],
+
     moduleFileExtensions: ['ts', 'js', 'json'],
-    transform: {
-        '^.+\\.ts$': 'ts-jest'
+
+    // if you have path aliases
+    moduleNameMapper: {
+        '^@src/(.*)$': '<rootDir>/src/$1',
     },
-    collectCoverage: true,
-    coverageDirectory: 'coverage',
     coveragePathIgnorePatterns: [
-        'scr/config/passport.ts',
-        'src/middlewares/error.middleware.ts',
+        '<rootDir>/src/config/',       // p.ej. swagger, env, etc.
+        '<rootDir>/src/utils/',        // helpers que no quieres medir
+        '<rootDir>/__tests__/',
+        '<rootDir>/src/middlewares/',
+        '<rootDir>/src/types/',
+        '<rootDir>/src/interfaces/',
+        '<rootDir>/src/models/',
+        '<rootDir>/src/app.ts',
+        '<rootDir>/src/server.ts',
     ],
-    coverageReporters: ['text', 'lcov']
 };

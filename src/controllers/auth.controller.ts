@@ -1,78 +1,68 @@
-import { NextFunction, Request, Response } from 'express';
-import { registerUser, loginUser, logoutUser } from '../services/auth.service';
-import { validateEmail, validatePassword, validatePasswordConfirmation } from '../utils/validators';
-import { ERROR_MESSAGES } from '../utils/constants';
+import { Request, Response } from 'express';
+import authService from '../services/auth.service';
+import Logger from '../config/logger';
+import { validateEmail } from '../utils/email.validator';
 
 export const register = async (req: Request, res: Response) => {
     try {
-        const { email, password, passwordConfirmation } = req.body;
+        const { email, password, confirmPassword } = req.body;
 
-        // Validaciones
-        const emailError = validateEmail(email);
-        if (emailError) return res.status(400).json({ error: emailError });
+        if (!email || !password || !confirmPassword) {
+            Logger.warn('Intento de registro con campos faltantes');
+            throw new Error('Todos los campos son obligatorios');
+        }
 
-        const passwordError = validatePassword(password);
-        if (passwordError) return res.status(400).json({ error: passwordError });
+        if (!validateEmail(email)) {
+            Logger.warn(`Email no válido: ${email}`);
+            throw new Error('El correo electrónico no cumple con el estándar ECORR');
+        }
 
-        const passwordConfirmationError = validatePasswordConfirmation(password, passwordConfirmation);
-        if (passwordConfirmationError) return res.status(400).json({ error: passwordConfirmationError });
+        if (password !== confirmPassword) {
+            Logger.warn('Las contraseñas no coinciden en el registro');
+            throw new Error('Las contraseñas no coinciden');
+        }
 
-        // Registrar usuario
-        const user = await registerUser(email, password);
+        const existingUser = await authService.getUserByEmail(email);
+        if (existingUser) {
+            Logger.warn(`Intento de registro con email existente: ${email}`);
+            throw new Error('El correo electrónico ya está en uso');
+        }
 
-        // Iniciar sesión automáticamente después del registro
-        const { token } = await loginUser(email, password);
+        const { user, token } = await authService.register(email, password, confirmPassword);
 
         res.status(201).json({
-            message: 'Usuario registrado exitosamente',
-            user: {
-                id: user._id,
-                email: user.email,
-                role: user.role,
-                status: user.status
-            },
-            token
+            success: true,
+            data: { user, token }
         });
     } catch (error: any) {
-        res.status(400).json({ error: error.message });
+        Logger.error(`Error en registro: ${error.message}`);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 
 export const login = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
+        const { user, token } = await authService.login(email, password);
 
-        const { user, token } = await loginUser(email, password);
-
-        res.json({
-            message: 'Inicio de sesión exitoso',
-            user: {
-                id: user._id,
-                email: user.email,
-                role: user.role,
-                status: user.status
-            },
-            token
+        res.status(200).json({
+            success: true,
+            data: { user, token }
         });
     } catch (error: any) {
-        res.status(401).json({ error: error.message });
+        Logger.error(`Error en login: ${error.message}`);
+        res.status(401).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 
-export const logout = async (req: Request, res: Response) => {
-    try {
-        const token = req.headers.authorization?.split(' ')[1];
-        if (token) {
-            logoutUser(token);
-        }
-        res.json({ message: 'Sesión cerrada exitosamente' });
-    } catch (error: any) {
-        res.status(400).json({ error: error.message });
-    }
-};
-
-export const verifyToken = async (req: Request, res: Response) => {
-    return res.status(200).json({
+export const verifyTokenNext = async (req: Request, res: Response) => {
+    res.status(200).json({
         success: true,
         message: 'Token válido',
         user: (req as any).user
