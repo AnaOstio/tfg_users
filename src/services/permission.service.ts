@@ -139,6 +139,16 @@ class PermissionService {
         Logger.info(`Permisos obtenidos: ${permissions.length} registros encontrados`);
         return permissions;
     }
+
+    async getPermissionByUserId(userId: string): Promise<any[]> {
+        Logger.debug(`Obteniendo permisos para el usuario: ${userId}`);
+        const permissions = await Permission
+            .find({ userId })
+            .populate('assignedBy', '-password')
+            .exec();
+        Logger.info(`Permisos obtenidos: ${permissions.length} registros encontrados`);
+        return permissions;
+    }
 }
 
 export default new PermissionService();

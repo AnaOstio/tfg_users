@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
-import { assignPermissions, getPermissionByMemoriesIds, getUserPermissions, revokePermissions, searchUsersByEmail } from '../controllers/permission.controller';
+import { assignPermissions, getPermissionByMemoriesIds, getPermissionByUserId, getUserPermissions, revokePermissions, searchUsersByEmail } from '../controllers/permission.controller';
 
 const router = Router();
 router.use(authenticate);
@@ -201,5 +201,7 @@ router.post('/permissions', assignPermissions);
 router.delete('/permissions', revokePermissions);
 
 router.post('/permissions/getByMemoryIds', getPermissionByMemoriesIds);
+
+router.get('/permissions/getByUserId', getPermissionByUserId);
 
 export default router;
