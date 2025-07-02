@@ -145,3 +145,20 @@ export const getPermissionByMemoriesIds = async (req: Request, res: Response) =>
         });
     }
 };
+
+export const getPermissionByUserId = async (req: Request, res: Response) => {
+    try {
+
+        const permissions = await permissionService.getPermissionByUserId((req as any).user._id.toString());
+        res.status(200).json({
+            success: true,
+            data: permissions
+        });
+    } catch (error: any) {
+        Logger.error(`Error al obtener permisos por ID de usuario: ${error.message}`);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+}
