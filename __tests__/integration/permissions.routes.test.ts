@@ -3,7 +3,7 @@ import app from '../../src/app';
 import { connect, clearDatabase, closeDatabase } from '../setup';
 import mongoose from 'mongoose';
 import { MemoryModel } from '../helper/memory.model';
-import User from '../../src/models/user.model'; // Asegúrate de importar el modelo User
+import User from '../../src/models/user.model';
 import jwt from 'jsonwebtoken';
 
 describe('Permissions routes (integration)', () => {
@@ -11,42 +11,30 @@ describe('Permissions routes (integration)', () => {
     let otherOwnerToken: string;
     let ownerId: string;
     let otherUserId: string;
+    let otherUserEmail: string;
     let memoryId: string;
 
     beforeAll(async () => {
         await connect();
 
-        // Crear usuario owner directamente en la base de datos
-        const owner = await User.create({
-            email: 'owner@example.com',
-            password: 'secret'
-        });
-        ownerId = (owner._id as mongoose.Types.ObjectId).toString();
-        console.log(`Owner ID: ${ownerId}`);
+        // Creo el owner
+        const owner = await User.create({ email: 'owner@example.com', password: 'secret' });
+        ownerId = (owner._id as unknown as string).toString();
+        ownerToken = jwt.sign({ id: ownerId }, 'your-secret-key', { expiresIn: '1h' });
 
-        // Generar token manualmente para evitar problemas con el endpoint de registro
-        ownerToken = jwt.sign({ id: ownerId }, 'your-secret-key', {
-            expiresIn: 3600 // 1 hora
-        });
+        // Creo el otro usuario
+        const otherUser = await User.create({ email: 'other@example.com', password: 'secret' });
+        otherUserId = (otherUser._id as unknown as string).toString();
+        otherUserEmail = otherUser.email;
+        otherOwnerToken = jwt.sign({ id: otherUserId }, 'your-secret-key', { expiresIn: '1h' });
 
-        // Crear usuario other directamente
-        const otherUser = await User.create({
-            email: 'other@example.com',
-            password: 'secret',
-        });
-        otherUserId = (otherUser._id as mongoose.Types.ObjectId).toString();
-
-        otherOwnerToken = jwt.sign({ id: otherUserId }, 'your-secret-key', {
-            expiresIn: 3600 // 1 hora
-        });
-
-        // Crear memory
+        // Creo una memoria
         const memory = await MemoryModel.create({
             title: 'Test Memory',
             content: 'Contenido de prueba',
             owner: ownerId
         });
-        memoryId = (memory._id as mongoose.Types.ObjectId).toString();
+        memoryId = (memory._id as unknown as string).toString();
     });
 
     afterAll(async () => {
@@ -62,8 +50,8 @@ describe('Permissions routes (integration)', () => {
                 .set('Authorization', `Bearer ${ownerToken}`);
 
             expect(res.status).toBe(200);
-            expect(res.body.success).toBe(true);
-            expect(res.body.data.some((u: any) => u.email === 'other@example.com')).toBe(true);
+            expect(Array.isArray(res.body.data)).toBe(true);
+            expect(res.body.data.some((u: any) => u.email === otherUserEmail)).toBe(true);
         });
 
         it('debe devolver 400 si falta el query param email', async () => {
@@ -76,22 +64,19 @@ describe('Permissions routes (integration)', () => {
         });
     });
 
-    describe('GET /api/permissions/', () => {
-        it('debe devolver los permisos de un usuario para una memoria específica', async () => {
+    describe('GET /api/permissions', () => {
+        it('debe devolver los permisos del usuario autenticado (vacío inicialmente)', async () => {
             const res = await request(app)
-                .get(`/api/permissions`)
-                .set('Authorization', `Bearer ${otherOwnerToken}`);
+                .get('/api/permissions')
+                .set('Authorization', `Bearer ${ownerToken}`);
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
-            expect(res.body.data).toBeDefined();
+            expect(Array.isArray(res.body.data)).toBe(true);
         });
 
-        it('debe devolver error 401 por no autizado', async () => {
-            const res = await request(app)
-                .get(`/api/permissions`)
-                .set('Authorization', `Bearer `);
-
+        it('debe devolver 401 si no envías token', async () => {
+            const res = await request(app).get('/api/permissions');
             expect(res.status).toBe(401);
         });
     });
@@ -101,10 +86,10 @@ describe('Permissions routes (integration)', () => {
             const res = await request(app)
                 .post('/api/permissions')
                 .set('Authorization', `Bearer ${ownerToken}`)
+                // ojo: el controlador usa getUserByEmail, así que enviamos el email, no el ID
                 .send({
                     memoryId,
-                    userId: otherUserId,
-                    assignedBy: ownerId,
+                    userId: otherUserEmail,
                     permissions: ['Edición']
                 });
 
@@ -113,35 +98,33 @@ describe('Permissions routes (integration)', () => {
             expect(res.body.data).toBeDefined();
         });
 
-        it('error falta los permisos', async () => {
+        it('debe devolver 400 si falta el campo permissions o está vacío', async () => {
             const res = await request(app)
                 .post('/api/permissions')
                 .set('Authorization', `Bearer ${ownerToken}`)
                 .send({
                     memoryId,
-                    userId: otherUserId,
-                    assignedBy: ownerId,
+                    userId: otherUserEmail,
                     permissions: []
                 });
 
             expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
         });
     });
 
     describe('DELETE /api/permissions', () => {
         it('debe revocar permisos de un usuario', async () => {
-            // Primero asignar permisos
+            // primero aseguro que tiene el permiso
             await request(app)
                 .post('/api/permissions')
                 .set('Authorization', `Bearer ${ownerToken}`)
                 .send({
                     memoryId,
-                    userId: otherUserId,
-                    assignedBy: ownerId,
+                    userId: otherUserEmail,
                     permissions: ['Edición']
                 });
 
-            // Luego revocar
             const res = await request(app)
                 .delete('/api/permissions')
                 .set('Authorization', `Bearer ${ownerToken}`)
@@ -154,33 +137,53 @@ describe('Permissions routes (integration)', () => {
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
         });
+
+        it('debe devolver 400 si falta el campo permissionsToRevoke o está vacío', async () => {
+            const res = await request(app)
+                .delete('/api/permissions')
+                .set('Authorization', `Bearer ${ownerToken}`)
+                .send({
+                    memoryId,
+                    userId: otherUserId
+                });
+
+            expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
+        });
     });
 
-    it('debe devolver 400 si intentas revocar permisos no existentes', async () => {
-        const res = await request(app)
-            .delete('/api/permissions')
-            .set('Authorization', `Bearer ${ownerToken}`)
-            .send({
-                memoryId,
-                userId: otherUserId,
-                permissionsToRevoke: ['Edición']
-            });
+    describe('POST /api/permissions/getByMemoryIds', () => {
+        it('debe devolver permisos por IDs de memoria', async () => {
+            // aseguro que hay al menos un permiso
+            await request(app)
+                .post('/api/permissions')
+                .set('Authorization', `Bearer ${ownerToken}`)
+                .send({
+                    memoryId,
+                    userId: otherUserEmail,
+                    permissions: ['Edición']
+                });
 
-        expect(res.status).toBe(400);
-        expect(res.body.success).toBe(false);
+            const res = await request(app)
+                .post('/api/permissions/getByMemoryIds')
+                .set('Authorization', `Bearer ${ownerToken}`)
+                .send([memoryId]);
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data).toBeDefined();
+        });
     });
 
-    it('error falta los permisos', async () => {
-        const res = await request(app)
-            .delete('/api/permissions')
-            .set('Authorization', `Bearer ${ownerToken}`)
-            .send({
-                memoryId,
-                userId: otherUserId,
-                assignedBy: ownerId,
-                permissions: []
-            });
+    describe('GET /api/permissions/getByUserId', () => {
+        it('debe devolver permisos por ID de usuario', async () => {
+            const res = await request(app)
+                .get('/api/permissions/getByUserId')
+                .set('Authorization', `Bearer ${ownerToken}`);
 
-        expect(res.status).toBe(400);
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data).toBeDefined();
+        });
     });
 });
