@@ -86,7 +86,6 @@ describe('Permissions routes (integration)', () => {
             const res = await request(app)
                 .post('/api/permissions')
                 .set('Authorization', `Bearer ${ownerToken}`)
-                // ojo: el controlador usa getUserByEmail, así que enviamos el email, no el ID
                 .send({
                     memoryId,
                     userId: otherUserEmail,
